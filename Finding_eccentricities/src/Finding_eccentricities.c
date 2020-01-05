@@ -36,7 +36,6 @@ enum MESSAGE_TYPE {
 	RESOLUTION = 2
 };
 
-
 // Initialization of the distances vector with 0 on all locations
 void Initialize(int *dist, int np)
 {
@@ -47,7 +46,6 @@ void Initialize(int *dist, int np)
 }
 
 // Build the message value with the maximum distance from neighbors + 1
-
 int Prepare_Message(int *dist, int np)
 {
 	int i;
@@ -67,14 +65,12 @@ int Prepare_Message(int *dist, int np)
 }
 
 // Update the distances vector with the received distance from sender
-
 void Process_Message(int *dist, int received_distance, int sender)
 {
 	dist[sender] = received_distance;
 }
 
 // Calculate the node eccentricity
-
 int Calculate_Eccentricities(int *dist, int np)
 {
 	int i;
@@ -95,7 +91,6 @@ int Calculate_Eccentricities(int *dist, int np)
 // 		- calculate the eccentricity
 //		- send the maxdist accordingly to each neighbor
 // 		- return the eccentricity
-
 int Resolve(int *dist, int nodes[][NR_NODES], int received_distance, int my_rank, int parent, int sender, int np)
 {
 	int dest, tag;
@@ -164,15 +159,6 @@ int main(int argc, char* argv[]){
 			{0, 1, 0, 0, 0, 1},
 			{0, 1, 0, 0, 0, 0},
 			{0, 0, 0, 1, 0, 0}
-	};
-
-	int nodes2[NR_NODES][NR_NODES] = {
-			{0, 1, 1, 0, 0, 0},
-			{1, 0, 0, 1, 1, 0},
-			{1, 0, 0, 0, 0, 0},
-			{0, 1, 0, 0, 0, 1},
-			{0, 1, 0, 0, 0, 0},
-			{0, 0, 1, 0, 0, 0}
 	};
 
 	int distances[NR_NODES];
