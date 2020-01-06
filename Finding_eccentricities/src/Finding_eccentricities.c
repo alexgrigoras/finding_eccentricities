@@ -91,7 +91,7 @@ int Calculate_Eccentricities(int *dist, int np)
 // 		- calculate the eccentricity
 //		- send the maxdist accordingly to each neighbor
 // 		- return the eccentricity
-int Resolve(int *dist, int nodes[][NR_NODES], int received_distance, int my_rank, int parent, int sender, int np)
+int Resolve(int *dist, int nodes[][NR_NODES], int received_distance, int my_rank, int parent, int sender, int np, MPI_Request request)
 {
 	int dest, tag;
 	int maxdist;
@@ -116,7 +116,7 @@ int Resolve(int *dist, int nodes[][NR_NODES], int received_distance, int my_rank
 
 			tag = RESOLUTION;
 			message = maxdist + 1;
-			MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
+			MPI_Isend(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD, &request);
 
 			//printf("[%d] I am sending RESOLUTION to %d\n", my_rank, dest);
 		}
@@ -144,6 +144,7 @@ int main(int argc, char* argv[]){
 	int tag = 0;    				// tag for messages
 	int message = 0;				// storage for message
 	MPI_Status status;				// return status for receive
+	MPI_Request request;			// the request parameter
 	
 	int i;							// index
 	int node_status = AVAILABLE;	// status of the node; initially is set to AVAILABLE
@@ -206,7 +207,7 @@ int main(int argc, char* argv[]){
 					{
 						tag = ACTIVATE;
 						message = 0;
-						MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
+						MPI_Isend(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD, &request);
 					}
 				}
 
@@ -229,7 +230,7 @@ int main(int argc, char* argv[]){
 
 					printf("[%d] AVAILABLE and sending SATURATION to %d\n", my_rank, dest);
 
-					MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
+					MPI_Isend(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD, &request);
 					node_status = PROCESSING;
 				}
 				else
@@ -240,8 +241,8 @@ int main(int argc, char* argv[]){
 			else
 			{
 				// receiving activation message
-
-				MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+				MPI_Irecv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &request);
+				MPI_Wait(&request, &status);
 				source = status.MPI_SOURCE;
 				tag = status.MPI_TAG;
 
@@ -259,7 +260,7 @@ int main(int argc, char* argv[]){
 							{
 								tag = ACTIVATE;
 								message = 0;
-								MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
+								MPI_Isend(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD, &request);
 							}
 						}
 					}
@@ -276,7 +277,7 @@ int main(int argc, char* argv[]){
 
 						printf("[%d] AVAILABLE and sending SATURATION to %d\n", my_rank, dest);
 
-						MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
+						MPI_Isend(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD, &request);
 						node_status = PROCESSING;
 					}
 					else
@@ -292,7 +293,8 @@ int main(int argc, char* argv[]){
 		// - process incoming messages
 		// - on the last message received send SATURATION message to source and become PROCESSING
 		case ACTIVE:
-			MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+			MPI_Irecv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &request);
+			MPI_Wait(&request, &status);
 			source = status.MPI_SOURCE;
 			tag = status.MPI_TAG;
 
@@ -311,7 +313,7 @@ int main(int argc, char* argv[]){
 
 					printf("[%d] ACTIVE and sending SATURATION to %d\n", my_rank, dest);
 
-					MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
+					MPI_Isend(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD, &request);
 					node_status = PROCESSING;
 				}
 			}
@@ -321,23 +323,24 @@ int main(int argc, char* argv[]){
 		// - saturated nodes are starting the resolution step where they send the needing information to
 		//	 other nodes
 		case PROCESSING:
-			MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+			MPI_Irecv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &request);
+			MPI_Wait(&request, &status);
 			source = status.MPI_SOURCE;
 			tag = status.MPI_TAG;
 
 			if(tag == SATURATION){
-				eccentricity = Resolve(distances, nodes, message, my_rank, parent, source, nr_processes);
+				eccentricity = Resolve(distances, nodes, message, my_rank, parent, source, nr_processes, request);
 				tag = RESOLUTION;
 				dest = parent;
 				message = eccentricity;
 
 				printf("[%d] SATURATED from %d and sending RESOLUTION to parent\n", my_rank, source);
 
-				MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
+				MPI_Isend(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD, &request);
 				node_status = DONE;
 			}
 			else if(tag == RESOLUTION){
-				eccentricity = Resolve(distances, nodes, message, my_rank, parent, source, nr_processes);
+				eccentricity = Resolve(distances, nodes, message, my_rank, parent, source, nr_processes, request);
 
 				printf("[%d] PROCESSING from %d and sending RESOLUTION to neighbors\n", my_rank, source);
 
