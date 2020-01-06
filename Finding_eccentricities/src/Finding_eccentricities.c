@@ -189,14 +189,17 @@ int main(int argc, char* argv[]){
 		switch(node_status)
 		{
 		// ACTIVATION state:
-		// 		- the root is sending activation messages to it's neighbors to activate
-		// 		- other nodes forward the activation to their neighbors
-		//		- the root chooses the parent the first neighbor
-		//		- other nodes choose the parent the neighbor if leaf or the last neighbor from which it received a message
+		// - the root is sending activation messages to its neighbors
+		// - other nodes forward the activation to their neighbors
+		// - the root chooses the parent the first neighbor
+		// - other nodes choose the parent the neighbor if leaf or the last neighbor from which it received a message
 		case AVAILABLE:
 			if(my_rank == ROOT)
 			{
 				// sending activation message to neighbors
+
+				printf("[%d] AVAILABLE and sending ACTIVATION to neighbors\n", my_rank);
+
 				for(dest=0; dest<nr_processes; dest++)
 				{
 					if(nodes[my_rank][dest])
@@ -219,9 +222,13 @@ int main(int argc, char* argv[]){
 							parent = dest;
 						}
 					}
+
 					message = Prepare_Message(distances, nr_processes);
 					tag = SATURATION;
 					dest = parent;
+
+					printf("[%d] AVAILABLE and sending SATURATION to %d\n", my_rank, dest);
+
 					MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
 					node_status = PROCESSING;
 				}
@@ -233,9 +240,12 @@ int main(int argc, char* argv[]){
 			else
 			{
 				// receiving activation message
+
 				MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 				source = status.MPI_SOURCE;
 				tag = status.MPI_TAG;
+
+				printf("[%d] AVAILABLE and receiving ACTIVATION from %d\n", my_rank, source);
 
 				// forward the activation
 				if(tag == ACTIVATE)
@@ -263,6 +273,9 @@ int main(int argc, char* argv[]){
 						tag = SATURATION;
 						message = Prepare_Message(distances, nr_processes);
 						dest = parent;
+
+						printf("[%d] AVAILABLE and sending SATURATION to %d\n", my_rank, dest);
+
 						MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
 						node_status = PROCESSING;
 					}
@@ -276,30 +289,37 @@ int main(int argc, char* argv[]){
 			break;
 
 		// ACTIVE STAGE:
-		// 		- process incoming messages
-		// 		- on the last message received send SATURATION message to source and become PROCESSING
+		// - process incoming messages
+		// - on the last message received send SATURATION message to source and become PROCESSING
 		case ACTIVE:
 			MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 			source = status.MPI_SOURCE;
 			tag = status.MPI_TAG;
-			temp_nr_neighbors -= 1;
 
-			Process_Message(distances, message, source);
-			if(temp_nr_neighbors == 1)
-			{
-				message = Prepare_Message(distances, nr_processes);
-				parent = source;
-				tag = SATURATION;
-				dest = parent;
-				MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
-				node_status = PROCESSING;
+			printf("[%d] ACTIVE and receiving SATURATION from %d\n", my_rank, source);
+
+			if(tag == SATURATION) {
+				temp_nr_neighbors -= 1;
+
+				Process_Message(distances, message, source);
+				if(temp_nr_neighbors == 1)
+				{
+					message = Prepare_Message(distances, nr_processes);
+					parent = source;
+					tag = SATURATION;
+					dest = parent;
+
+					printf("[%d] ACTIVE and sending SATURATION to %d\n", my_rank, dest);
+
+					MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
+					node_status = PROCESSING;
+				}
 			}
-
 			break;
 
 		// PROCESSING STAGE:
-		// 		- saturated nodes are starting the resolution step were they send the needing information to
-		//			other nodes
+		// - saturated nodes are starting the resolution step where they send the needing information to
+		//	 other nodes
 		case PROCESSING:
 			MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 			source = status.MPI_SOURCE;
@@ -310,18 +330,16 @@ int main(int argc, char* argv[]){
 				tag = RESOLUTION;
 				dest = parent;
 				message = eccentricity;
+
+				printf("[%d] SATURATED from %d and sending RESOLUTION to parent\n", my_rank, source);
+
 				MPI_Send(&message, 1, MPI_INT, dest, tag, MPI_COMM_WORLD);
-
-				printf("[%d]=%d\n", my_rank, eccentricity);
-				fflush(stdout);
-
 				node_status = DONE;
 			}
 			else if(tag == RESOLUTION){
 				eccentricity = Resolve(distances, nodes, message, my_rank, parent, source, nr_processes);
 
-				printf("[%d]=%d\n", my_rank, eccentricity);
-				fflush(stdout);
+				printf("[%d] PROCESSING from %d and sending RESOLUTION to neighbors\n", my_rank, source);
 
 				node_status = DONE;
 			}
@@ -329,8 +347,11 @@ int main(int argc, char* argv[]){
 			break;
 
 		// DONE State
-		//		- nodes finish their execution
+		// - nodes finish their execution
 		case DONE:
+			printf("r(%d) = %d\n", my_rank, eccentricity);
+			fflush(stdout);
+
 			finished = TRUE;
 			break;
 		}
