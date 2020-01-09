@@ -152,7 +152,6 @@ int main(int argc, char* argv[]){
 	int nr_neighbors = 0;			// the number of neighbors
 	int temp_nr_neighbors = 0;		// temporary number of neighbors
 
-
 	int nodes[NR_NODES][NR_NODES] = {
 			{0, 1, 0, 0, 0, 0},
 			{1, 0, 1, 1, 1, 0},
@@ -161,10 +160,20 @@ int main(int argc, char* argv[]){
 			{0, 1, 0, 0, 0, 0},
 			{0, 0, 0, 1, 0, 0}
 	};
+	/*
+	int nodes[NR_NODES][NR_NODES] = {
+			{0, 1, 1, 0, 0},
+			{1, 0, 0, 1, 1},
+			{1, 0, 0, 0, 0},
+			{0, 1, 0, 0, 0},
+			{0, 1, 0, 0, 0}
+	};
+	*/
 
 	int distances[NR_NODES];
 	int finished = FALSE;
 	int eccentricity = -1;
+	int neighbors_sum = 0;
 
 	// start up MPI
 	MPI_Init(&argc, &argv);
@@ -179,6 +188,7 @@ int main(int argc, char* argv[]){
 		if(nodes[my_rank][i])
 		{
 			nr_neighbors++;
+			neighbors_sum += i;
 		}
 	}
 	// and store it to a temporary variable
@@ -302,12 +312,13 @@ int main(int argc, char* argv[]){
 
 			if(tag == SATURATION) {
 				temp_nr_neighbors -= 1;
+				neighbors_sum -= source;
 
 				Process_Message(distances, message, source);
 				if(temp_nr_neighbors == 1)
 				{
 					message = Prepare_Message(distances, nr_processes);
-					parent = source;
+					parent = neighbors_sum;
 					tag = SATURATION;
 					dest = parent;
 
