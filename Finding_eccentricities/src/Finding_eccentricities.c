@@ -1,14 +1,14 @@
 /*
- ================================================================================
- | Name        	: Finding_eccentricities.c										|
- | Author      	: Alexandru Grigoras											|
- | Version     	: 04															|
- | Copyright   	: Copyright Alexandru Grigoras									|
+ ========================================================================================================
+ | Name        	: Finding_eccentricities.c								|
+ | Author      	: Alexandru Grigoras									|
+ | Version     	: 04											|
+ | Copyright   	: Copyright Alexandru Grigoras								|
  | Description 	: Finding the eccentricities in a tree							|
- | References	: The algorithm is implemented from								|
+ | References	: The algorithm is implemented from							|
  | 	 	 	   		[N. Santoro, Design and Analysis of Distributed Algorithms,	|
- |	 	 	    	Ottawa: WILEY-INTERSCIENCE, 2006]							|
- ================================================================================
+ |	 	 	    	Ottawa: WILEY-INTERSCIENCE, 2006]					|
+ ========================================================================================================
  */
 
 #include <stdio.h>
